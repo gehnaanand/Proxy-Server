@@ -48,6 +48,40 @@
 //         exit(1);
 //     }
 // }
+char blocklist[BUFFER_SIZE][BUFFER_SIZE];
+int blocklist_size = 0;
+
+void load_blocklist() {
+    FILE *file = fopen("blocklist.txt", "r");
+    if (file == NULL) {
+        perror("Error opening blocklist file");
+        exit(1);
+    }
+
+    char line[BUFFER_SIZE];
+    while (fgets(line, BUFFER_SIZE, file) != NULL) {
+        line[strcspn(line, "\n")] = '\0'; 
+        strcpy(blocklist[blocklist_size], line);
+        blocklist_size++;
+    }
+
+    fclose(file);
+}
+
+int is_blocked(const char *host) {
+    for (int i = 0; i < blocklist_size; i++) {
+        if (strcmp(host, blocklist[i]) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void send_forbidden(int client_socket) {
+    const char *forbidden_response = "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n";
+    send(client_socket, forbidden_response, strlen(forbidden_response), 0);
+}
+
 // Function to parse the request and extract host, port, path, and body
 void parse_request(char *request, char *host, int *port, char *path, char *body) {
     // Implement your parsing logic here
@@ -117,6 +151,14 @@ void *handle_request(void *arg) {
     // Parse the request
     printf("Buffer received from client - %s\n", buffer);
     parse_request(buffer, host, &port, path, body);
+
+    // Check if the requested host is in the blocklist
+    if (is_blocked(host)) {
+        printf("Host %s is blocked\n", host);
+        send_forbidden(client_socket);
+        close(client_socket);
+        pthread_exit(NULL);
+    }
 
     // Create a socket to connect to the server
     int server_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -193,6 +235,8 @@ int main(int argc, char *argv[]) {
         perror("Error creating socket");
         return 1;
     }
+
+    load_blocklist();
 
     // Bind socket to port
     struct sockaddr_in server_addr;
