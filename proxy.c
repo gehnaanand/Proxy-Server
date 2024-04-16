@@ -20,7 +20,7 @@
 #define BUFFER_SIZE 1024
 #define CACHE_DIR "./cache/"
 
-int timeout; // Timeout value for cached pages
+int timeout; 
 static int count = 0;
 static int count1 = 0;
 
@@ -112,7 +112,7 @@ int is_expired(const char *hash) {
         return 1; // Treat as expired if file status cannot be retrieved
     }
     time_t current_time = time(NULL);
-    char access_time_str[26]; // Buffer to hold the formatted time string
+    char access_time_str[26]; 
     strftime(access_time_str, 26, "%Y-%m-%d %H:%M:%S", localtime(&st.st_mtime));
 
     printf("Last modified time: %s\n", access_time_str);
@@ -129,9 +129,6 @@ int is_expired(const char *hash) {
 
 // Function to fetch a page from the remote server and cache it
 void fetch_and_cache(int client_socket, const char *url, const char *host, int port, char *buffer1, ssize_t bytes_received1, const char *hash, int dynamic) {
-    // Implement fetching logic here
-    // This function should establish a connection to the remote server,
-    // fetch the requested page, save it to the cache directory, and close the connection.
     // Receive response from the server
     printf("Fetch and cache - %s\n", url);
     // Create a socket to connect to the server
@@ -167,7 +164,6 @@ void fetch_and_cache(int client_socket, const char *url, const char *host, int p
     }
 
     // Forward request to server
-    // char request[BUFFER_SIZE];
     if (send(server_socket, buffer1, bytes_received1, 0) < 0) {
         perror("Error sending request to server");
         close(server_socket);
@@ -216,6 +212,16 @@ void fetch_and_cache(int client_socket, const char *url, const char *host, int p
 
         if (!dynamic) {
             // printf("Cache the page\n");
+            // Check if cache directory exists, create if not
+            struct stat st;
+            if (stat(CACHE_DIR, &st) == -1) {
+                if (mkdir(CACHE_DIR, 0755) == -1) {
+                    perror("Error creating cache directory");
+                    close(server_socket);
+                    return;
+                }
+            }
+            
             if (cache_fd == -1) {
                 char cache_path[BUFFER_SIZE];
                 sprintf(cache_path, "%s%s", CACHE_DIR, hash);
@@ -259,21 +265,21 @@ CURLM *multi_handle;
 
 // Function to extract the base URL from a given URL
 char *get_base_url(const char *url) {
-    char *base_url = strdup(url); // Duplicate the input URL to avoid modifying the original string
+    char *base_url = strdup(url); 
     if (base_url == NULL) {
         fprintf(stderr, "Error: Memory allocation failed\n");
         return NULL;
     }
-    char *protocol_end = strstr(base_url, "://"); // Find the end of the protocol part
+    char *protocol_end = strstr(base_url, "://"); 
     if (protocol_end != NULL) {
-        char *domain_start = protocol_end + 3; // Move to the character after "://"
-        char *slash_after_domain = strchr(domain_start, '/'); // Find the first "/" after the domain part
+        char *domain_start = protocol_end + 3; 
+        char *slash_after_domain = strchr(domain_start, '/'); 
         if (slash_after_domain != NULL) {
-            *slash_after_domain = '\0'; // Replace the first "/" after the domain with the null terminator to truncate the string
+            *slash_after_domain = '\0'; 
         }
     } else {
         fprintf(stderr, "Invalid URL\n");
-        free(base_url); // Free the allocated memory before returning NULL
+        free(base_url); 
         return NULL;
     }
     
@@ -281,213 +287,15 @@ char *get_base_url(const char *url) {
     return base_url;
 }
 
-// int process_url(const char *base_url, char *url) {
-//     // Check if the URL is a valid HTTP URL or not '#'
-//     if (strncmp(url, "http://", 7) == 0 || strncmp(url, "https://", 8) == 0 ) {
-//         printf("Valid URL: %s\n", url);
-//         return 1;
-//     } else if (strcmp(url, "#") == 0) {
-//         printf("Invalid URL: %s\n", url);
-//         return 0;
-//     } else {
-//         if (base_url == NULL)
-//             return 0;
-        
-//         // Calculate the length of the concatenated URL
-//         size_t base_url_length = strlen(base_url);
-//         size_t url_length = strlen(url);
-        
-//         // Allocate memory for the absolute URL
-//         char *absolute_url = malloc(base_url_length + url_length + 1);
-//         if (absolute_url == NULL) {
-//             fprintf(stderr, "Memory allocation failed\n");
-//             return 0;
-//         }
-        
-//         // Copy the base URL to absolute URL
-//         strcpy(absolute_url, base_url);
-        
-//         // If base_url doesn't end with '/', append it
-//         if (absolute_url[base_url_length - 1] != '/') {
-//             strcat(absolute_url, "/");
-//         }
-
-//         // Concatenate the relative URL to absolute URL
-//         strcat(absolute_url, url);
-
-//         printf("Converted URL: %s\n", absolute_url);
-        
-//         // Update the original URL with the absolute URL
-//         strcpy(url, absolute_url);
-        
-//         // Free the allocated memory for absolute URL
-//         free(absolute_url);
-        
-//         return 1;
-//     }
-// }
-
-// Function to check if a URL is valid and convert relative URLs to absolute ones
-int process_url(const char *base_url, char *url) {
-    // Check if the URL is a valid HTTP URL or not '#'
-    if ((strncmp(url, "http://", 7) == 0 || strncmp(url, "https://", 8) == 0) && strlen(url) >= 8) {
-        printf("Valid URL: %s\n", url);
-        return 1;
-    } else if (strcmp(url, "#") == 0) {
-        printf("Invalid URL: %s\n", url);
-        return 0;
-    } else {
-        if (base_url == NULL)
-            return 0;
-
-        // Calculate the length of the concatenated URL
-        size_t base_url_length = strlen(base_url);
-        size_t url_length = strlen(url);
-
-        // Check if base URL ends with '/'
-        bool ends_with_slash = (base_url[base_url_length - 1] == '/');
-
-        // Check if URL starts with '/'
-        bool starts_with_slash = (url[0] == '/');
-
-        // Allocate memory for the absolute URL
-        char absolute_url[base_url_length + url_length + 1];
-
-        // Construct the absolute URL
-        if (ends_with_slash && starts_with_slash) {
-            // If both base URL ends with '/' and URL starts with '/', skip one of them
-            snprintf(absolute_url, sizeof(absolute_url), "%.*s%.*s", (int)base_url_length - 1, base_url, (int)url_length, url + 1);
-        } else if (!ends_with_slash && !starts_with_slash) {
-            // If neither base URL ends with '/' nor URL starts with '/', concatenate with '/'
-            snprintf(absolute_url, sizeof(absolute_url), "%s/%s", base_url, url);
-        } else {
-            // Otherwise, concatenate without adding '/'
-            snprintf(absolute_url, sizeof(absolute_url), "%s%s", base_url, url);
-        }
-
-        printf("Converted URL: %s\n", absolute_url);
-
-        // Update the original URL with the absolute URL
-        strcpy(url, absolute_url);
-
-        return 1;
-    }
-}
-
-// Recursive function to traverse the HTML document tree and extract links
-void traverse_and_extract_links(xmlNodePtr node, char **extracted_links, int *num_links, const char *base_url) {
-    for (xmlNodePtr curNode = node; curNode; curNode = curNode->next) {
-        if (curNode->type == XML_ELEMENT_NODE) {
-            if (xmlStrcmp(curNode->name, (const xmlChar *)"a") == 0) {
-                xmlChar *href = xmlGetProp(curNode, (const xmlChar *)"href");
-                if (href != NULL) {
-                    // Validate the URL before extracting
-                    printf("href - %s\n", href);
-                    if (process_url(base_url, (char *)href)) {
-                        extracted_links[*num_links] = (char *)malloc((strlen((const char *)href) + 1) * sizeof(char));
-                        // extracted_links[*num_links] = strdup((const char *)href);
-                        count++;
-                        if (extracted_links[*num_links] != NULL) {
-                            strncpy(extracted_links[*num_links], (const char *)href, strlen((const char *)href));
-                            extracted_links[*num_links][strlen((const char *)href)] = '\0';
-                            (*num_links)++;
-                        } 
-                        // *extracted_links_ptr = realloc(*extracted_links_ptr, (*num_links + 1) * sizeof(char *)); // Resize the array
-                        // if (*extracted_links_ptr != NULL) {
-                        //     (*extracted_links_ptr)[*num_links] = strdup((const char *)href); // Duplicate the string
-                        //     if ((*extracted_links_ptr)[*num_links] != NULL) {
-                        //         (*num_links)++;
-                        //     }
-                        // }
-                        // extracted_links[*num_links] = strdup((const char *)href);
-                        // if (extracted_links[*num_links] != NULL) {
-                        //     (*num_links)++;
-                        // }
-                    }
-                    xmlFree(href);
-                }
-            }
-            traverse_and_extract_links(curNode->children, extracted_links, num_links, base_url);
-        }
-    }
-    // Null-terminate the array
-    extracted_links[*num_links] = NULL;
-}
-
-// Function to parse a page and extract links
-char **parse_page(const char *url, const char *page_content, int *num_links) {
-    printf("Parse page \n");
-    htmlDocPtr doc;
-    doc = htmlReadMemory(page_content, strlen(page_content), url, NULL, HTML_PARSE_NOERROR | HTML_PARSE_NOWARNING);
-
-    if (doc == NULL) {
-        fprintf(stderr, "Error: Failed to parse document\n");
-        return NULL;
-    }
-
-    xmlNodePtr curNode;
-    curNode = xmlDocGetRootElement(doc);
-
-    if (curNode == NULL) {
-        fprintf(stderr, "Error: Empty document\n");
-        xmlFreeDoc(doc);
-        return NULL;
-    }
-
-    // Dynamically allocate memory for the array of extracted links
-    char **extracted_links = (char **)malloc(BUFFER_SIZE * sizeof(char *));
-    count++;
-    if (extracted_links == NULL) {
-        fprintf(stderr, "Error: Memory allocation failed\n");
-        xmlFreeDoc(doc);
-        return NULL;
-    }
-    
-    // Initialize num_links to 0
-    *num_links = 0;
-
-    char *base_url = get_base_url(url);
-    // Traverse the HTML document tree to extract links
-    traverse_and_extract_links(xmlDocGetRootElement(doc), extracted_links, num_links, base_url);
-
-    if (base_url != NULL) {
-        free(base_url);
-    }
-    xmlFreeDoc(doc);
-
-    printf("Finished parsing\n");
-    return extracted_links;
-}
-
-
-// Callback function for libcurl to handle fetched data
-// size_t my_curl_write_callback(void *contents, size_t size, size_t nmemb, void *userp) {
-//     // Assuming that userp points to a buffer
-//     // You may need to adjust this logic based on your caching mechanism
-//     size_t real_size = size * nmemb;
-//     memcpy(userp, contents, real_size);
-//     return real_size;
-// }
-
-// size_t my_curl_write_callback(void *contents, size_t size, size_t nmemb, void *userp) {
-//     size_t realsize = size * nmemb;
-//     char *ptr = (char *)userp;
-//     strcat(ptr, contents);
-//     return realsize;
-// }
-
-// size_t my_write_callback(char *ptr, size_t size, size_t nmemb, char *data) {
-//     size_t total_size = size * nmemb;
-//     strcat(data, ptr);
-//     return total_size;
-// }
 char* filterAndAppendURL(const char* baseUrl, const char* url) {
     // Check if the URL starts with "https" or "#"
     printf("filterAndAppendURL - %s, %s\n", baseUrl, url);
     if (strncmp(url, "https://", 8) == 0 || url[0] == '#') {
         // Return NULL for filtered URLs
         return NULL;
-    } else if (strncmp(url, "http", 4) == 0) {
+    } 
+    
+    if (strncmp(url, "http", 4) == 0) {
         // If the URL starts with "http", return it as is
         size_t urlLen = strlen(url);
         char* result = (char*)malloc(urlLen + 1); // +1 for '\0'
@@ -498,64 +306,42 @@ char* filterAndAppendURL(const char* baseUrl, const char* url) {
         }
         strcpy(result, url);
         return result;
-    } else {
-        // Calculate the length of the resulting URL
-        size_t baseLen = strlen(baseUrl);
-        size_t urlLen = strlen(url);
-        size_t resultLen = baseLen + urlLen + 2; // 1 for '\0'
+    } 
+    
+    // Append url to the base url
+    size_t baseLen = strlen(baseUrl);
+    size_t urlLen = strlen(url);
 
-        // Allocate memory for the resulting URL
-        char* result = (char*)malloc(resultLen);
-        if (result == NULL) {
-            // Allocation failed
-            fprintf(stderr, "Memory allocation failed\n");
-            exit(1);
-        }
+    // Allocate memory for the resulting URL
+    char* result = (char*)malloc(baseLen + urlLen + 2); // 1 for '/' and 1 for '\0'
+    if (result == NULL) {
+        // Allocation failed
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(1);
+    }
 
-        // Copy the base URL to the resulting URL
-        strcpy(result, baseUrl);
+    // Copy the base URL to the resulting URL
+    strcpy(result, baseUrl);
+    
+    // Determine if the base URL ends with '/'
+    int baseHasSlash = (baseUrl[baseLen - 1] == '/');
 
+    // Determine if the URL starts with '/'
+    int urlHasSlash = (url[0] == '/');
+
+    if (baseHasSlash && urlHasSlash) {
+        // Skip one slash from the URL
+        strcat(result, url + 1);
+    } else if (!baseHasSlash && !urlHasSlash) {
+        // Add a slash between the base URL and the URL
         strcat(result, "/");
-        // Append the URL to the resulting URL
         strcat(result, url);
-
-        return result;
-    }
-}
-
-// Function to extract base URL from a given URL
-char* extract_base_url(const char *url) {
-    char *base_url = NULL;
-
-    // Find the scheme (http:// or https://)
-    const char *scheme_start = strstr(url, "://");
-    if (scheme_start != NULL) {
-        scheme_start += 3; // Move cursor to the beginning of the host
-
-        // Find the end of the host (before the first '/')
-        const char *host_end = strchr(scheme_start, '/');
-        if (host_end == NULL) {
-            // If no '/' found, the host extends until the end of the URL
-            host_end = strchr(scheme_start, '\0');
-        }
-
-        // Calculate the length of the host
-        int host_length = host_end - scheme_start;
-
-        // Allocate memory for the base URL
-        base_url = malloc(sizeof(char) * (host_length + 1));
-        if (base_url != NULL) {
-            // Copy the host into the base URL
-            strncpy(base_url, scheme_start, host_length);
-            base_url[host_length] = '\0'; // Null-terminate the string
-        } else {
-            fprintf(stderr, "Memory allocation failed\n");
-        }
     } else {
-        fprintf(stderr, "Invalid URL\n");
+        // No need to adjust, just concatenate
+        strcat(result, url);
     }
 
-    return base_url;
+    return result;
 }
 
 // Function to check if content resembles HTML based on tags
@@ -569,7 +355,6 @@ bool resemblesHTML(const char *html_content) {
 char** extract_links(const char *html_content, int *num_links, const char *parent_url) {
     // Check if the content is HTML
     if (!resemblesHTML(html_content)) {
-        // Handle non-HTML content
         fprintf(stderr, "Input is not HTML content\n");
         *num_links = 0;
         return NULL;
@@ -593,7 +378,7 @@ char** extract_links(const char *html_content, int *num_links, const char *paren
     if (base_url != NULL) {
         printf("Base URL: %s\n", base_url);
     }
-    char *result;
+    char *result_url;
     while ((cursor = strstr(cursor, start_tag)) != NULL) {
         const char *end = strstr(cursor, end_tag);
         if (end != NULL) {
@@ -611,10 +396,9 @@ char** extract_links(const char *html_content, int *num_links, const char *paren
                         strncpy(url, href_start, url_length);
                         url[url_length] = '\0';
                         // Store the URL in the array
-                        result = filterAndAppendURL(base_url, url);
-                        if (result != NULL) {
-                            // Store the URL in the array
-                            links[count] = result;
+                        result_url = filterAndAppendURL(base_url, url);
+                        if (result_url != NULL) {
+                            links[count] = result_url;
                             count++;
                         } else {
                             // Free the memory allocated for invalid URLs
@@ -628,7 +412,7 @@ char** extract_links(const char *html_content, int *num_links, const char *paren
                         }
                         free(links);
                         free(base_url);
-                        free(result);
+                        free(result_url);
                         *num_links = 0;
                         return NULL;
                     }
@@ -643,12 +427,12 @@ char** extract_links(const char *html_content, int *num_links, const char *paren
         }
     }
 
-    // Set the number of links extracted
     *num_links = count;
     free(base_url);
-    free(result);
+    free(result_url);
     return links;
 }
+
 // Struct to hold fetched data
 struct MemoryStruct {
     char *memory;
@@ -663,16 +447,13 @@ size_t write_callback(void *ptr, size_t size, size_t nmemb, void *data) {
     // Reallocate memory to fit new data
     mem->memory = realloc(mem->memory, mem->size + total_size + 1);
     if (mem->memory == NULL) {
-        // Out of memory!
         printf("Failed to allocate memory\n");
         return 0;
     }
 
-    // Copy new data to the end of the buffer
     memcpy(&(mem->memory[mem->size]), ptr, total_size);
     mem->size += total_size;
-    mem->memory[mem->size] = '\0'; // Null-terminate the string
-
+    mem->memory[mem->size] = '\0'; 
     return total_size;
 }
 
@@ -683,21 +464,15 @@ void *prefetch_links(void *arg) {
     CURL *curl;
     CURLcode res;
 
-    // Initialize libcurl
     curl_global_init(CURL_GLOBAL_ALL);
-
-    // Create a curl handle
     curl = curl_easy_init();
     struct MemoryStruct fetched_data;
     int num_links;
     char **links;
     if (curl) {
-        // Set the URL to fetch
         curl_easy_setopt(curl, CURLOPT_URL, url);
-
-        // Set callback function to handle fetched data
         
-        fetched_data.memory = malloc(1); // Start with a small initial buffer
+        fetched_data.memory = malloc(1);
         fetched_data.size = 0;
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &fetched_data);
@@ -709,23 +484,13 @@ void *prefetch_links(void *arg) {
                     curl_easy_strerror(res));
         }
         else {
-            // Print fetched HTML content
-            // printf("Fetched HTML:\n%s\n", fetched_data.memory);
-            // extract_links(fetched_data.memory);
-            
             // Extract links from HTML content
             links = extract_links(fetched_data.memory, &num_links, url);
             if (links != NULL) {
-                // Print the extracted links
-                printf("Extracted Links:\n");
                 for (int i = 0; i < num_links; i++) {
-                    printf("Link %d: %s\n", i + 1, links[i]);
-                    // Free the memory allocated for each link
-                    // free(links[i]);
-
+                    printf("Extracted Link %d: %s\n", i + 1, links[i]);
                 }
                 for (int i = 0; i < num_links; ++i) {
-                    // Construct the URL for the prefetch link
                     char prefetch_url[BUFFER_SIZE];
                     strcpy(prefetch_url, links[i]);
                     printf("Prefetch url - %s\n", prefetch_url);
@@ -756,8 +521,6 @@ void *prefetch_links(void *arg) {
                     count1--;
                     get_request = NULL;
                 }
-                // Free the array of links
-                // free(links);
                 printf("Gehna\n");
             } else {
                 fprintf(stderr, "Failed to extract links\n");
@@ -766,145 +529,15 @@ void *prefetch_links(void *arg) {
 
         if (links != NULL) {
             for (int i = 0; i < num_links; i++) {
-                // printf("Link %d: %s\n", i + 1, links[i]);
-                // Free the memory allocated for each link
                 free(links[i]);
-
             }
             free(links);
         }
-        // Clean up
         free(fetched_data.memory);
-        printf("Gehna 2\n");
-        printf("Gehna 2\n");
-        printf("Gehna 2\n");
-        printf("Gehna 2\n");
-        printf("Gehna 2\n");
-        printf("Gehna 2\n");
         curl_easy_cleanup(curl);
-        printf("Gehna 3\n");
     }
-
-    // Clean up libcurl
-    printf("Gehna 4\n");
     curl_global_cleanup();
-
-    // char cache_path[BUFFER_SIZE];
-
-    // // Initialize libcurl multi handle
-    // multi_handle = curl_multi_init();
-    // if (!multi_handle) {
-    //     fprintf(stderr, "Error initializing libcurl multi handle\n");
-    //     pthread_exit(NULL);
-    // }
-
-    // CURL *curl_handle;
-    // curl_handle = curl_easy_init();
-    // if (!curl_handle) {
-    //     fprintf(stderr, "Error initializing libcurl easy handle\n");
-    //     curl_multi_cleanup(multi_handle);
-    //     pthread_exit(NULL);
-    // }
-
-    
-    // // char page_content[BUFFER_SIZE];
-    // char *page_content = (char *)malloc(BUFFER_SIZE * sizeof(char));
-    // if (!page_content) {
-    //     fprintf(stderr, "Error allocating memory for page content\n");
-    //     curl_easy_cleanup(curl_handle);
-    //     curl_multi_cleanup(multi_handle);
-    //     pthread_exit(NULL);
-    //     // return EXIT_FAILURE;
-    // }
-
-    // // page_content[0] = '\0'; 
-    // // Set libcurl options
-    // curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, my_curl_write_callback);
-    // // Fetch the page content from the remote server
-    // curl_easy_setopt(curl_handle, CURLOPT_URL, url);
-    // curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, page_content);
-
-    // // curl_easy_setopt(curl_handle, CURLOPT_VERBOSE, 1L);
-
-    // CURLcode res = curl_easy_perform(curl_handle);
-    // if (res != CURLE_OK) {
-    //     fprintf(stderr, "Error fetching page content: %s\n", curl_easy_strerror(res));
-    //     // free(page_content); // Free dynamically allocated memory
-    //     pthread_exit(NULL);
-    // }
-    // printf("Page content - %s\n", page_content);
-
-    // Parse the page to extract links
-    // int num_links;
-    // char **extracted_links = parse_page(url, page_content, &num_links);
-    // // Print each extracted link
-    // for (int i = 0; i < num_links; ++i) {
-    //     printf("Extracted link - %s\n", extracted_links[i]);
-    // }
-
-    // if (extracted_links == NULL) {
-    //     fprintf(stderr, "Error extracting links from page\n");
-    //     pthread_exit(NULL);
-    // }
-
-    // // Fetch and cache the extracted links
-    // for (int i = 0; i < num_links; ++i) {
-    //     // Construct the URL for the prefetch link
-    //     char prefetch_url[BUFFER_SIZE];
-    //     strcpy(prefetch_url, extracted_links[i]);
-    //     printf("Prefetch url - %s\n", prefetch_url);
-
-    //     // Generate hash for prefetch link URL
-    //     printf("Calculate hash\n");
-    //     char prefetch_hash[MD5_DIGEST_LENGTH * 2 + 1];
-    //     calculate_md5(prefetch_url, prefetch_hash);
-    //     printf("Prefetch hash file - %s\n", prefetch_hash);
-
-    //     char host[BUFFER_SIZE], path[BUFFER_SIZE], url[BUFFER_SIZE];
-    //     int port;
-    //     // Convert the URL into a GET request
-    //     char *get_request = url_to_get_request(prefetch_url, host, &port, path);
-    //     printf("Url - %s, host - %s, port - %d, path - %s\n", prefetch_url, host, port, path);
-    //     if (get_request == NULL) {
-    //         fprintf(stderr, "Error: Failed to convert URL to GET request\n");
-    //         pthread_exit(NULL);
-    //     }
-
-    //     if (!is_cached(prefetch_hash) || is_expired(prefetch_hash)) {
-    //         fetch_and_cache(0, prefetch_url, host, port, get_request, strlen(get_request), prefetch_hash, is_dynamic(prefetch_url));
-    //     } else {
-    //         printf("Already in cache - %s\n", prefetch_url);
-    //     }
-    //     printf("Get request - %s\n", get_request);
-    //     free(get_request);
-    //     count1--;
-    //     get_request = NULL;
-    // }
-
-    // Clean up libcurl handles
-    printf("Claening up\n");
-    
-    // curl_easy_cleanup(curl_handle);
-    // printf("Claening up 1\n");
-    // curl_multi_cleanup(multi_handle);
-    // printf("Claening up 2\n");
-    // free(page_content);
-
-    // Free memory allocated for extracted links
-    // for (int i = 0; i < num_links; ++i) {
-    //     printf("Free - %s\n", extracted_links[i]);
-    //     free(extracted_links[i]);
-    //     count--;
-    // }
-    // printf("Claening up 4\n");
-    // printf("Freeing - %s\n", extracted_links);
-    // free(extracted_links);
-    // count--;
-    // extracted_links = NULL;
-    printf("Claening up 5 - %d, %d\n", count, count1);
-
     pthread_exit(NULL);
-    printf("Claening up 6\n");
 }
 
 // Function to serve a cached page to the client
@@ -964,23 +597,29 @@ int is_blocked(const char *host) {
     return 0;
 }
 
-void send_forbidden(int client_socket) {
-    const char *forbidden_response = "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n";
-    send(client_socket, forbidden_response, strlen(forbidden_response), 0);
+void send_error_response(int client_socket, int error_code, const char *error_message) {
+    char response[BUFFER_SIZE];
+    snprintf(response, BUFFER_SIZE, "HTTP/1.1 %d %s\r\nContent-Length: %lu\r\n\r\n%s",
+             error_code, error_message, strlen(error_message), error_message);
+    send(client_socket, response, strlen(response), 0);
 }
 
 // Function to parse the request and extract host, port, path, and body
-void parse_request(char *request, char *host, int *port, char *path, char *url) {
-    // Implement your parsing logic here
-    // Extract host, port, path, and body from the request
-    // Extract method, URL, and HTTP version from the request
+int parse_request(int client_socket, char *request, char *host, int *port, char *path, char *url) {
     char method[BUFFER_SIZE], http_version[BUFFER_SIZE];
     sscanf(request, "%s %s %s", method, url, http_version);
+
+    if (strcmp(method, "CONNECT") == 0) {
+        printf("Ignoring this request as not supported\n\n");
+        send_error_response(client_socket, 400, "Bad Request");
+        return 0;
+    }
 
     // Check if the method is valid (supporting only GET)
     if (strcmp(method, "GET") != 0) {
         fprintf(stderr, "Error: Unsupported HTTP method\n");
-        exit(1);
+        send_error_response(client_socket, 400, "Bad Request");
+        return 0;
     }
 
     // Parse the URL to extract host, port (if specified), and path
@@ -1005,16 +644,19 @@ void parse_request(char *request, char *host, int *port, char *path, char *url) 
         }
     } else {
         fprintf(stderr, "Error: Invalid URL format\n");
-        exit(1);
+        send_error_response(client_socket, 400, "Bad Request");
+        return 0;
     }
 
     // Ensure that the specified HTTP server exists (resolve hostname)
     struct hostent *server_hostent = gethostbyname(host);
     if (server_hostent == NULL) {
         fprintf(stderr, "Error: Could not resolve hostname\n");
-        exit(1);
+        send_error_response(client_socket, 404, "Not Found");
+        return 0;
     }
     printf("host = %s\n",server_hostent->h_name);
+    return 1;
 }
 
 // Function to handle requests from clients
@@ -1037,12 +679,14 @@ void *handle_request(void *arg) {
 
     // Parse the request
     printf("Buffer received from client - %s\n", buffer);
-    parse_request(buffer, host, &port, path, url);
-
+    if (!parse_request(client_socket, buffer, host, &port, path, url)) {
+        pthread_exit(NULL);
+    }
+    
     // Check if the requested host is in the blocklist
     if (is_blocked(host)) {
         printf("Host %s is blocked\n", host);
-        send_forbidden(client_socket);
+        send_error_response(client_socket, 403, "Forbidden");
         close(client_socket);
         pthread_exit(NULL);
     }

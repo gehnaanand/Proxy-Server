@@ -12,7 +12,8 @@ curl --proxy http://localhost:8080 http://www.google.com -ivk -o /dev/null -w "R
 ### Send Simultaneous Requests
 curl --proxy http://localhost:8080 http://www.google.com -ivk -o /dev/null -w "Response time: %{time_total} seconds\n" & curl --proxy http://localhost:8080 http://www.google.com -ivk -o /dev/null -w "Response time: %{time_total} seconds\n" &
 
-http://netsys.cs.colorado.edu/
+curl --proxy http://localhost:8080 http://netsys.cs.colorado.edu/ -ivk -o /dev/null -w "Response time: %{time_total} seconds\n"
+
 ## Pending to implement
 1. Cache file should expire from last accessed time
 2. Link prefetch
